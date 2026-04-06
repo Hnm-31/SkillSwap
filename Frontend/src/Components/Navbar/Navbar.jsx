@@ -97,8 +97,16 @@ const Header = () => {
   const [discover, setDiscover] = useState(false);
 
   useEffect(() => {
-    setNavUser(JSON.parse(localStorage.getItem("userInfo")));
-    // console.log("navUser", navUser);
+    const storedUser = localStorage.getItem("userInfo");
+    if (storedUser && storedUser !== "undefined") {
+      try {
+        setNavUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setNavUser(null);
+    }
   }, [user]);
 
   useEffect(() => {
