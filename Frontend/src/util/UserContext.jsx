@@ -16,12 +16,13 @@ const UserContextProvider = ({ children }) => {
     };
     window.addEventListener("popstate", handleUrlChange);
     const userInfoString = localStorage.getItem("userInfo");
-    if (userInfoString) {
+    if (userInfoString && userInfoString !== "undefined") {
       try {
         const userInfo = JSON.parse(userInfoString);
         setUser(userInfo);
       } catch (error) {
         console.error("Error parsing userInfo:", error);
+        localStorage.removeItem("userInfo");
       }
     } else {
       const temp = window.location.href.split("/");

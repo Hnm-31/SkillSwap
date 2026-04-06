@@ -37,8 +37,12 @@ const Discover = () => {
         setLoading(true);
         const { data } = await axios.get(`/user/registered/getDetails`);
         console.log(data.data);
-        setUser(data.data);
-        localStorage.setItem("userInfo", JSON.stringify(data.data));
+        if (data && data.data) {
+          setUser(data.data);
+          localStorage.setItem("userInfo", JSON.stringify(data.data));
+        } else {
+          throw new Error("Invalid API response - routed to frontend instead of backend");
+        }
       } catch (error) {
         console.log(error);
         if (error?.response?.data?.message) {

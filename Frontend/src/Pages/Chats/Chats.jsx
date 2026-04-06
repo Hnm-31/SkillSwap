@@ -72,7 +72,8 @@ const Chats = () => {
   const fetchChats = async () => {
     try {
       setChatLoading(true);
-      const tempUser = JSON.parse(localStorage.getItem("userInfo"));
+      const userStr = localStorage.getItem("userInfo");
+      const tempUser = (userStr && userStr !== "undefined") ? JSON.parse(userStr) : null;
       const { data } = await axios.get("/chat");
       // console.log("Chats", data.data);
       toast.success(data.message);
