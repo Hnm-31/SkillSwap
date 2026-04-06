@@ -30,6 +30,15 @@ FROM nginx:alpine
 # Add a custom nginx configuration to handle React client-side routing (fixes 404s on refresh)
 RUN echo 'server { \
     listen 80; \
+    \
+    location /auth/ { proxy_pass http://backend:8000; } \
+    location /user/ { proxy_pass http://backend:8000; } \
+    location /chat/ { proxy_pass http://backend:8000; } \
+    location /message/ { proxy_pass http://backend:8000; } \
+    location /request/ { proxy_pass http://backend:8000; } \
+    location /report/ { proxy_pass http://backend:8000; } \
+    location /rating/ { proxy_pass http://backend:8000; } \
+    \
     location / { \
         root   /usr/share/nginx/html; \
         index  index.html index.htm; \
