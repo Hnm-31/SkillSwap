@@ -73,7 +73,7 @@ const Chats = () => {
     try {
       setChatLoading(true);
       const tempUser = JSON.parse(localStorage.getItem("userInfo"));
-      const { data } = await axios.get("http://localhost:8000/chat");
+      const { data } = await axios.get("/chat");
       // console.log("Chats", data.data);
       toast.success(data.message);
       if (tempUser?._id) {
@@ -113,7 +113,7 @@ const Chats = () => {
   const handleChatClick = async (chatId) => {
     try {
       setChatMessageLoading(true);
-      const { data } = await axios.get(`http://localhost:8000/message/getMessages/${chatId}`);
+      const { data } = await axios.get(`/message/getMessages/${chatId}`);
       setChatMessages(data.data);
       // console.log("Chat Messages:", data.data);
       setMessage("");
