@@ -1,31 +1,47 @@
-# Use an official Node.js runtime as a base image (npm is included in this image)
-FROM node:20
+# Stage 1: Build the React application
+FROM node:20 AS builder
 
-# fetch the latest version of the package lists
-RUN apt-get update
-
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /app
 
-# Copy the contents of the Frontend directory
-COPY Frontend/ /app/Frontend
+# Copy package files to leverage cache
+COPY Frontend/package*.json ./
 
-WORKDIR /app/Frontend
-
-# Remove node_modules and .env files from the Frontend directory if they exist
-RUN rm -rf node_modules .env
-
-# Install Node.js dependencies in the container app directory
+# Install dependencies
 RUN npm install
 
+# Copy all source files
+COPY Frontend/ .
+
+# Accept environment variables required at build-time by Vite
 ARG VITE_LOCALHOST
+ARG VITE_SERVER_URL
 
-#write the environment variables to a .env file
-RUN echo "VITE_LOCALHOST=${VITE_LOCALHOST}" > .env
+# Write the build-time variables so Vite can embed them into the static chunk
+RUN echo "VITE_LOCALHOST=${VITE_LOCALHOST}" > .env \
+    && echo "VITE_SERVER_URL=${VITE_SERVER_URL}" >> .env
 
-RUN cat .env
+# Build for production (outputs to /app/dist)
+RUN npm run build
 
-EXPOSE 5173
+# Stage 2: Serve the app with Nginx (Lightweight production web server)
+FROM nginx:alpine
 
-# Run the frontend development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Add a custom nginx configuration to handle React client-side routing (fixes 404s on refresh)
+RUN echo 'server { \
+    listen 80; \
+    location / { \
+        root   /usr/share/nginx/html; \
+        index  index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+# Copy the build output from the builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Nginx serves on port 80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
