@@ -1,299 +1,199 @@
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../util/UserContext";
-import { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { NavLink } from "react-router-dom";
-import Navbar from "react-bootstrap/Navbar";
-import Nav from "react-bootstrap/Nav";
-import Form from "react-bootstrap/Form";
-import FormControl from "react-bootstrap/FormControl";
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import ProfileCard from "./ProfileCard";
-import "./Discover.css";
-import Search from "./Search";
+import { motion, AnimatePresence } from "framer-motion";
 import Spinner from "react-bootstrap/Spinner";
+import ProfileCard from "./ProfileCard";
+import { FiSearch, FiFilter, FiUser, FiCode, FiCpu, FiPlusCircle } from "react-icons/fi";
 
 const Discover = () => {
   const navigate = useNavigate();
-
   const { user, setUser } = useUser();
-
   const [loading, setLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("Perfect Matches");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const [discoverUsers, setDiscoverUsers] = useState([]);
-
-  const [webDevUsers, setWebDevUsers] = useState([]);
-
-  const [mlUsers, setMlUsers] = useState([]);
-
-  const [otherUsers, setOtherUsers] = useState([]);
+  const [users, setUsers] = useState({
+    perfectMatches: [],
+    recommended: [],
+    webDev: [],
+    ml: [],
+    others: []
+  });
 
   useEffect(() => {
-    const getUser = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const { data } = await axios.get(`/user/registered/getDetails`);
-        console.log(data.data);
-        if (data && data.data) {
-          setUser(data.data);
-          localStorage.setItem("userInfo", JSON.stringify(data.data));
-        } else {
-          throw new Error("Invalid API response - routed to frontend instead of backend");
+        const { data: userData } = await axios.get(`/user/registered/getDetails`);
+        if (userData && userData.data) {
+          setUser(userData.data);
+          localStorage.setItem("userInfo", JSON.stringify(userData.data));
         }
+
+        const { data: discoverData } = await axios.get("/user/discover");
+        setUsers({
+          perfectMatches: discoverData.data.perfectMatches || [],
+          recommended: discoverData.data.forYou || [],
+          webDev: discoverData.data.webDev || [],
+          ml: discoverData.data.ml || [],
+          others: discoverData.data.others || []
+        });
       } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-        }
-        localStorage.removeItem("userInfo");
-        setUser(null);
-        await axios.get("/auth/logout");
-        navigate("/login");
-      }
-    };
-    const getDiscoverUsers = async () => {
-      try {
-        const { data } = await axios.get("/user/discover");
-        console.log(data);
-        setDiscoverUsers(data.data.forYou);
-        setWebDevUsers(data.data.webDev);
-        setMlUsers(data.data.ml);
-        setOtherUsers(data.data.others);
-      } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-        }
-        localStorage.removeItem("userInfo");
-        setUser(null);
-        await axios.get("/auth/logout");
-        navigate("/login");
+        console.error(error);
+        if (error?.response?.status === 401) navigate("/login");
       } finally {
         setLoading(false);
       }
     };
-    getUser();
-    getDiscoverUsers();
+    fetchData();
   }, []);
 
+  const categories = [
+    { name: "Perfect Matches", icon: <FiFilter />, key: "perfectMatches" },
+    { name: "Recommended", icon: <FiUser />, key: "recommended" },
+    { name: "Web Development", icon: <FiCode />, key: "webDev" },
+    { name: "AI & ML", icon: <FiCpu />, key: "ml" },
+    { name: "Others", icon: <FiPlusCircle />, key: "others" },
+  ];
+
+  const getActiveUsers = () => {
+    const key = categories.find(c => c.name === activeCategory)?.key || "recommended";
+    const userList = users[key];
+    if (!searchQuery) return userList;
+    return userList.filter(u => 
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      u.skillsProficientAt.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  };
+
   return (
-    <>
-      <div className="discover-page">
-        <div className="content-container">
-          <div className="nav-bar">
-            <Nav defaultActiveKey="/home" className="flex-column">
-              <Nav.Link href="#for-you" className="navlink" id="foryou">
-                For You
-              </Nav.Link>
-              <Nav.Link href="#popular" className="navlink" id="popular1">
-                Popular
-              </Nav.Link>
-              <Nav.Link href="#web-development" className="navlink">
-                Web Development
-              </Nav.Link>
-              <Nav.Link href="#machine-learning" className="navlink">
-                Machine Learning
-              </Nav.Link>
-              {/* <Nav.Link href="#graphic-design" className="navlink">
-                Graphic Design
-              </Nav.Link>
-              <Nav.Link href="#soft-skills" className="navlink">
-                Soft Skills
-              </Nav.Link> */}
-              <Nav.Link href="#others" className="navlink">
-                Others
-              </Nav.Link>
-            </Nav>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)', paddingTop: '100px' }}>
+      {/* Categories Sidebar */}
+      <aside style={{
+        width: '300px',
+        height: 'calc(100vh - 100px)',
+        position: 'fixed',
+        left: '5%',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+      }}>
+        <h4 style={{ marginBottom: '20px', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          Explore Skills
+        </h4>
+        {categories.map((cat) => (
+          <button
+            key={cat.name}
+            onClick={() => setActiveCategory(cat.name)}
+            className="glass"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '15px',
+              padding: '15px 20px',
+              border: activeCategory === cat.name ? '1px solid var(--primary)' : '1px solid var(--border-glass)',
+              background: activeCategory === cat.name ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+              color: activeCategory === cat.name ? 'var(--primary)' : 'var(--text-main)',
+              borderRadius: '16px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              transition: 'var(--transition-smooth)',
+              width: '100%'
+            }}
+          >
+            {cat.icon}
+            {cat.name}
+          </button>
+        ))}
+      </aside>
+
+      {/* Main Content */}
+      <main style={{ marginLeft: '400px', flex: 1, paddingRight: '5%' }}>
+        {/* Search & Header */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '40px',
+          background: 'rgba(255,255,255,0.02)',
+          padding: '20px',
+          borderRadius: '24px',
+          border: '1px solid var(--border-glass)'
+        }}>
+          <div>
+            <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{activeCategory}</h1>
+            <p style={{ color: 'var(--text-muted)' }}>Find your perfect skill swap partner today.</p>
           </div>
-          <div className="heading-container">
-            {loading ? (
-              <div className="container d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
-                <Spinner animation="border" variant="primary" />
-              </div>
-            ) : (
-              <>
-                {/* <div>
-                  <Search />
-                </div> */}
-                <h1
-                  id="for-you"
-                  style={{
-                    fontFamily: "Josefin Sans, sans-serif",
-                    color: "#fbf1a4",
-                    marginTop: "2rem",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  For You
-                </h1>
-                <div className="profile-cards">
-                  {discoverUsers && discoverUsers.length > 0 ? (
-                    discoverUsers.map((user) => (
-                      <ProfileCard
-                        profileImageUrl={user?.picture}
-                        name={user?.name}
-                        rating={user?.rating ? user?.rating : 5}
-                        bio={user?.bio}
-                        skills={user?.skillsProficientAt}
-                        username={user?.username}
-                      />
-                    ))
-                  ) : (
-                    <h1 style={{ color: "#fbf1a4" }}>No users to show</h1>
-                  )}
-                  {/* <ProfileCard
-                    profileImageUrl="/assets/images/sample_profile.jpg"
-                    name="Paakhi Maheshwari"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="Computer Science student specialising in data science and machine learning"
-                    skills={["Machine Learning", "Python", "Data Science", "English", "Communication"]}
-                  />
-                  <ProfileCard
-                    profileImageUrl="/assets/images/sample_profile2.jpeg"
-                    name="Harsh Sharma"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="Web Developer and Competitive programmer, specialising in MERN stack."
-                    skills={["React.JS", "MongoDB", "DSA", "Node.JS"]}
-                  /> */}
-                </div>
-                <h1
-                  id="popular"
-                  style={{
-                    fontFamily: "Josefin Sans, sans-serif",
-                    color: "#fbf1a4",
-                    marginTop: "1rem",
-                    marginBottom: "3rem",
-                  }}
-                >
-                  Popular
-                </h1>
-                <h2 id="web-development">Web Development</h2>
-                <div className="profile-cards">
-                  {/* Profile cards go here */}
-                  {webDevUsers && webDevUsers.length > 0 ? (
-                    webDevUsers.map((user) => (
-                      <ProfileCard
-                        profileImageUrl={user?.picture}
-                        name={user?.name}
-                        rating={4}
-                        bio={user?.bio}
-                        skills={user?.skillsProficientAt}
-                        username={user?.username}
-                      />
-                    ))
-                  ) : (
-                    <h1 style={{ color: "#fbf1a4" }}>No users to show</h1>
-                  )}
-                  {/* Add more ProfileCard components as needed */}
-                </div>
-                <h2 id="machine-learning">Machine Learning</h2>
-                <div className="profile-cards">
-                  {mlUsers && mlUsers.length > 0 ? (
-                    mlUsers.map((user) => (
-                      <ProfileCard
-                        profileImageUrl={user?.picture}
-                        name={user?.name}
-                        rating={4}
-                        bio={user?.bio}
-                        skills={user?.skillsProficientAt}
-                        username={user?.username}
-                      />
-                    ))
-                  ) : (
-                    <h1 style={{ color: "#fbf1a4" }}>No users to show</h1>
-                  )}
-                  {/* <ProfileCard
-                    profileImageUrl="/assets/images/profile2.png"
-                    name="Madan Gupta"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="Experienced professor specialising in data science and machine learning"
-                    skills={["Machine Learning", "Python", "Data Science", "English", "Communication"]}
-                  />
-                  <ProfileCard
-                    profileImageUrl="/assets/images/profile4.jpg"
-                    name="Karuna Yadav"
-                    rating="⭐⭐⭐⭐"
-                    bio="Working professional specialising in Artificial Intelligence and Machine Learning Research."
-                    skills={["Machine Learning", "Python", "Data Science", "Artificial Intelligence"]}
-                  /> */}
-                </div>
-                {/* <h2 id="graphic-design">Graphic Design</h2>
-                <div className="profile-cards">
-                  <ProfileCard
-                    profileImageUrl="profile-image-url"
-                    name="Name"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="yahan apan bio rakhre"
-                    skills={["HTML", "CSS", "JS"]}
-                  />
-                  <ProfileCard
-                    profileImageUrl="profile-image-url"
-                    name="Name"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="yahan apan bio rakhre"
-                    skills={["HTML", "CSS", "JS"]}
-                  />
-                </div>
-                <h2 id="soft-skills">Soft Skills</h2>
-                <div className="profile-cards">
-                  <ProfileCard
-                    profileImageUrl="profile-image-url"
-                    name="Name"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="yahan apan bio rakhre"
-                    skills={["HTML", "CSS", "JS"]}
-                  />
-                  <ProfileCard
-                    profileImageUrl="profile-image-url"
-                    name="Name"
-                    rating="⭐⭐⭐⭐⭐"
-                    bio="yahan apan bio rakhre"
-                    skills={["HTML", "CSS", "JS"]}
-                  />
-                </div> */}
-                <h2 id="others">Others</h2>
-                <div className="profile-cards">
-                  {/* Profile cards go here */}
-                  {otherUsers && otherUsers.length > 0 ? (
-                    otherUsers.map((user) => (
-                      <ProfileCard
-                        profileImageUrl={user?.picture}
-                        name={user?.name}
-                        rating={4}
-                        bio={user?.bio}
-                        skills={user?.skillsProficientAt}
-                        username={user?.username}
-                      />
-                    ))
-                  ) : (
-                    <h1 style={{ color: "#fbf1a4" }}>No users to show</h1>
-                  )}
-                  {/* <ProfileCard
-                    profileImageUrl="/assets/images/profile.jpg"
-                    name="Anil Khosla"
-                    rating="⭐⭐⭐⭐"
-                    bio="Professor - Maths 2 @ IIIT Raipur. Specialising in Algebra"
-                    skills={["Mathematics", "Algebra", "Arithmetic"]}
-                  />
-                  <ProfileCard
-                    profileImageUrl="/assets/images/profile3.jpg"
-                    name="Rahul Goel"
-                    rating="⭐⭐⭐⭐"
-                    bio="Photography and art enthusiast. National Wildlife Photography Awardee."
-                    skills={["Art", "Photography"]}
-                  /> */}
-                  {/* Add more ProfileCard components as needed */}
-                </div>
-                {/* Add more ProfileCard components as needed */}
-              </>
-            )}
+          <div className="glass" style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '12px 20px',
+            gap: '15px',
+            width: '400px'
+          }}>
+            <FiSearch style={{ color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              placeholder="Search skills or names..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                outline: 'none',
+                width: '100%',
+                fontSize: '0.95rem'
+              }}
+            />
           </div>
         </div>
-      </div>
-    </>
+
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', height: '50vh', alignItems: 'center' }}>
+            <Spinner animation="border" variant="primary" />
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+            gap: '30px',
+            paddingBottom: '60px'
+          }}>
+            <AnimatePresence mode="popLayout">
+              {getActiveUsers().length > 0 ? (
+                getActiveUsers().map((u, i) => (
+                  <motion.div
+                    key={u._id || i}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <ProfileCard 
+                      profileImageUrl={u.picture}
+                      name={u.name}
+                      rating={u.rating || 5}
+                      bio={u.bio}
+                      skills={u.skillsProficientAt}
+                      username={u.username}
+                    />
+                  </motion.div>
+                ))
+              ) : (
+                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '100px' }}>
+                  <h2 style={{ color: 'var(--text-muted)' }}>No experts found for this match.</h2>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </main>
+    </div>
   );
 };
 

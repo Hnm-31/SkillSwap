@@ -14,6 +14,8 @@ import {
   uploadPic,
   discoverUsers,
   sendScheduleMeet,
+  addLearningLog,
+  getCommunityFeed,
 } from "../controllers/user.controllers.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
@@ -30,10 +32,13 @@ router.route("/registerUser").post(verifyJWT_email, registerUser);
 router.route("/registered/saveRegDetails").post(verifyJWT_username, saveRegRegisteredUser);
 router.route("/registered/saveEduDetail").post(verifyJWT_username, saveEduRegisteredUser);
 router.route("/registered/saveAddDetail").post(verifyJWT_username, saveAddRegisteredUser);
-// router.route("/registered/updateDetails").post(verifyJWT_username, updateRegisteredUser);
 
 // Upload Picture
 router.route("/uploadPicture").post(verifyJWT_username, upload.fields([{ name: "picture", maxCount: 1 }]), uploadPic);
+
+// Community Feed
+router.route("/community/log").post(verifyJWT_username, addLearningLog);
+router.route("/community/feed").get(verifyJWT_username, getCommunityFeed);
 
 // get user details
 router.route("/registered/getDetails/:username").get(verifyJWT_username, UserDetails);

@@ -1,13 +1,12 @@
-import React from "react";
-import "./Profile.css";
-import Box from "./Box";
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useUser } from "../../util/UserContext";
 import { toast } from "react-toastify";
 import axios from "axios";
+import { motion } from "framer-motion";
 import Spinner from "react-bootstrap/Spinner";
-import { Link } from "react-router-dom";
+import { FiGithub, FiLinkedin, FiExternalLink, FiAward, FiCheckCircle, FiActivity } from "react-icons/fi";
+import Box from "./Box";
 
 const Profile = () => {
   const { user, setUser } = useUser();
@@ -22,222 +21,183 @@ const Profile = () => {
       setLoading(true);
       try {
         const { data } = await axios.get(`/user/registered/getDetails/${username}`);
-        console.log(data.data);
         setProfileUser(data.data);
       } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-          if (error.response.data.message === "Please Login") {
-            localStorage.removeItem("userInfo");
-            setUser(null);
-            await axios.get("/auth/logout");
-            navigate("/login");
-          }
+        console.error(error);
+        if (error?.response?.status === 401) {
+          localStorage.removeItem("userInfo");
+          setUser(null);
+          navigate("/login");
         }
       } finally {
         setLoading(false);
       }
     };
     getUser();
-  }, []);
+  }, [username]);
 
   const convertDate = (dateTimeString) => {
+    if (!dateTimeString) return "Present";
     const date = new Date(dateTimeString);
-    const formattedDate = date.toLocaleDateString("en-US", { month: "2-digit", year: "numeric" }).replace("/", "-");
-    return formattedDate;
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   };
 
   const connectHandler = async () => {
-    console.log("Connect");
     try {
       setConnectLoading(true);
-      const { data } = await axios.post(`/request/create`, {
-        receiverID: profileUser._id,
-      });
-
-      console.log(data);
+      const { data } = await axios.post(`/request/create`, { receiverID: profileUser._id });
       toast.success(data.message);
-      setProfileUser((prevState) => {
-        return {
-          ...prevState,
-          status: "Pending",
-        };
-      });
+      setProfileUser(prev => ({ ...prev, status: "Pending" }));
     } catch (error) {
-      console.log(error);
-      if (error?.response?.data?.message) {
-        toast.error(error.response.data.message);
-        if (error.response.data.message === "Please Login") {
-          localStorage.removeItem("userInfo");
-          setUser(null);
-          await axios.get("/auth/logout");
-          navigate("/login");
-        }
-      }
+      toast.error(error?.response?.data?.message || "Connection failed");
     } finally {
       setConnectLoading(false);
     }
   };
 
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-main)' }}>
+      <Spinner animation="border" variant="primary" />
+    </div>
+  );
+
   return (
-    <div className="profile-container">
-      <div className="container" style={{ minHeight: "86vh" }}>
-        {loading ? (
-          <div className="row d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
-            <Spinner animation="border" variant="primary" />
-          </div>
-        ) : (
-          <>
-            <div className="profile-box">
-              <div className="left-div">
-                {/* Profile Photo */}
-                <div className="profile-photo">
-                  <img src={profileUser?.picture} alt="Profile" />
-                </div>
-                {/* Name */}
-                <div className="misc">
-                  <h1 className="profile-name" style={{ marginLeft: "2rem" }}>
-                    {profileUser?.name}
-                  </h1>
-                  {/* Rating */}
-                  <div className="rating" style={{ marginLeft: "2rem" }}>
-                    {/* Rating stars */}
-                    <span className="rating-stars">
-                      {profileUser?.rating
-                        ? Array.from({ length: profileUser.rating }, (_, index) => <span key={index}>⭐</span>)
-                        : "⭐⭐⭐⭐⭐"}
-                    </span>
-                    {/* Rating out of 5 */}
-                    <span className="rating-value">{profileUser?.rating ? profileUser?.rating : "5"}</span>
-                  </div>
-                  {/* Connect and Report Buttons */}
-                  {
-                    // If the user is the same as the logged in user, don't show the connect and report buttons
-                    user?.username !== username && (
-                      <div className="buttons">
-                        <button
-                          className="connect-button"
-                          onClick={profileUser?.status === "Connect" ? connectHandler : undefined}
-                        >
-                          {connectLoading ? (
-                            <>
-                              <Spinner animation="border" variant="light" size="sm" style={{ marginRight: "0.5rem" }} />
-                            </>
-                          ) : (
-                            profileUser?.status
-                          )}
-                        </button>
-                        <Link to={`/report/${profileUser.username}`}>
-                          <button className="report-button">Report</button>
-                        </Link>
-                        <Link to={`/rating/${profileUser.username}`}>
-                          <button className="report-button bg-success">Rate</button>
-                        </Link>
-                      </div>
-                    )
-                  }
-                </div>
-              </div>
-              <div className="edit-links">
-                {user.username === username && (
-                  <Link to="/edit_profile">
-                    <button className="edit-button">Edit Profile ✎</button>
-                  </Link>
-                )}
-
-                {/* Portfolio Links */}
-                <div className="portfolio-links">
-                  <a
-                    href={profileUser?.githubLink ? profileUser.githubLink : "#"}
-                    target={profileUser?.githubLink ? "_blank" : "_self"}
-                    className="portfolio-link"
-                  >
-                    <img src="/assets/images/github.png" className="link" alt="Github" />
-                  </a>
-                  <a
-                    href={profileUser?.linkedinLink ? profileUser.linkedinLink : "#"}
-                    target={profileUser?.linkedinLink ? "_blank" : "_self"}
-                    className="portfolio-link"
-                  >
-                    <img src="/assets/images/linkedin.png" className="link" alt="LinkedIn" />
-                  </a>
-                  <a
-                    href={profileUser?.portfolioLink ? profileUser.portfolioLink : "#"}
-                    target={profileUser?.portfolioLink ? "_blank" : "_self"}
-                    className="portfolio-link"
-                  >
-                    <img src="/assets/images/link.png" className="link" alt="Portfolio" />
-                  </a>
-                </div>
-              </div>
+    <div style={{ background: 'var(--bg-main)', minHeight: '100vh', paddingTop: '120px', paddingBottom: '60px' }}>
+      <div className="container" style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 20px' }}>
+        
+        {/* Header Profile Section */}
+        <section className="glass-card" style={{ padding: '40px', display: 'flex', gap: '40px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '40px' }}>
+          <div style={{ position: 'relative' }}>
+            <div style={{ width: '180px', height: '180px', borderRadius: '50%', overflow: 'hidden', border: '4px solid var(--primary)', boxShadow: '0 0 30px var(--primary-glow)' }}>
+              <img src={profileUser?.picture} alt={profileUser?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
-
-            {/* Bio */}
-            <h2>Bio</h2>
-            <p className="bio">{profileUser?.bio}</p>
-
-            {/* Skills */}
-            <div className="skills">
-              <h2>Skills Proficient At</h2>
-              {/* Render skill boxes here */}
-              <div className="skill-boxes">
-                {profileUser?.skillsProficientAt.map((skill, index) => (
-                  <div className="skill-box" style={{ fontSize: "16px" }} key={index}>
-                    {skill}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Education */}
-            <div className="education">
-              <h2>Education</h2>
-
-              <div className="education-boxes">
-                {/* Render education boxes here */}
-                {profileUser &&
-                  profileUser?.education &&
-                  profileUser?.education.map((edu, index) => (
-                    <Box
-                      key={index}
-                      head={edu?.institution}
-                      date={convertDate(edu?.startDate) + " - " + convertDate(edu?.endDate)}
-                      spec={edu?.degree}
-                      desc={edu?.description}
-                      score={edu?.score}
-                    />
-                  ))}
-              </div>
-            </div>
-
-            {/* Projects */}
-            {profileUser?.projects && profileUser?.projects.length > 0 && (
-              <div className="projects">
-                <h2>Projects</h2>
-
-                <div className="project-boxes">
-                  {
-                    // Render project boxes here
-                    profileUser &&
-                      profileUser?.projects &&
-                      profileUser?.projects.map((project, index) => (
-                        <Box
-                          key={index}
-                          head={project?.title}
-                          date={convertDate(project?.startDate) + " - " + convertDate(project?.endDate)}
-                          desc={project?.description}
-                          skills={project?.techStack}
-                        />
-                      ))
-                  }
-
-                  {/* Render project boxes here */}
-                </div>
+            {profileUser?.isVerified && (
+              <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'var(--bg-main)', borderRadius: '50%', padding: '4px' }}>
+                <FiCheckCircle size={32} color="#22c55e" />
               </div>
             )}
-          </>
-        )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: '300px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+              <h1 style={{ fontSize: '2.5rem', margin: 0 }}>{profileUser?.name}</h1>
+              <div className="glass" style={{ padding: '5px 15px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--accent)' }}>
+                <FiAward color="var(--accent)" />
+                <span style={{ fontWeight: '700', color: 'var(--accent)' }}>{profileUser?.karma || 0} Karma</span>
+              </div>
+            </div>
+            
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginBottom: '20px' }}>@{profileUser?.username}</p>
+            
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+              {user?.username !== username && (
+                <button 
+                  className={profileUser?.status === "Connect" ? "btn-primary" : "glass"}
+                  onClick={profileUser?.status === "Connect" ? connectHandler : undefined}
+                  style={{ padding: '12px 30px', borderRadius: '12px', minWidth: '140px' }}
+                >
+                  {connectLoading ? <Spinner size="sm" /> : profileUser?.status}
+                </button>
+              )}
+              {user?.username === username && (
+                <Link to="/edit_profile" style={{ textDecoration: 'none' }}>
+                  <button className="glass" style={{ padding: '12px 30px', borderRadius: '12px', color: 'white' }}>Edit Profile</button>
+                </Link>
+              )}
+              
+              <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+                <a href={profileUser?.githubLink} target="_blank" className="glass" style={{ padding: '12px', borderRadius: '12px', color: 'white' }}><FiGithub size={20} /></a>
+                <a href={profileUser?.linkedinLink} target="_blank" className="glass" style={{ padding: '12px', borderRadius: '12px', color: 'white' }}><FiLinkedin size={20} /></a>
+                <a href={profileUser?.portfolioLink} target="_blank" className="glass" style={{ padding: '12px', borderRadius: '12px', color: 'white' }}><FiExternalLink size={20} /></a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '40px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+            {/* Bio Section */}
+            <section>
+              <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FiUser /> Biography
+              </h2>
+              <div className="glass-card" style={{ padding: '30px' }}>
+                <p style={{ fontSize: '1.1rem', lineHeight: 1.7, color: 'var(--text-muted)' }}>{profileUser?.bio}</p>
+              </div>
+            </section>
+
+            {/* Projects Section */}
+            <section>
+              <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FiActivity /> Featured Projects
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {profileUser?.projects?.map((item, i) => (
+                  <Box 
+                    key={i}
+                    head={item.title}
+                    desc={item.description}
+                    date={`${convertDate(item.startDate)} - ${convertDate(item.endDate)}`}
+                    skills={item.techStack}
+                  />
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+            {/* Skills Section */}
+            <section>
+              <h2 style={{ marginBottom: '20px' }}>Skills & Expertise</h2>
+              <div className="glass-card" style={{ padding: '30px' }}>
+                <h6 style={{ color: 'var(--text-dark)', textTransform: 'uppercase', fontSize: '0.75rem', marginBottom: '15px' }}>Proficient At</h6>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '30px' }}>
+                  {profileUser?.skillsProficientAt?.map((s, i) => (
+                    <span key={i} className="glass" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '0.9rem', border: '1px solid var(--primary)' }}>{s}</span>
+                  ))}
+                </div>
+                
+                <h6 style={{ color: 'var(--text-dark)', textTransform: 'uppercase', fontSize: '0.75rem', marginBottom: '15px' }}>Wants to Learn</h6>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                  {profileUser?.skillsToLearn?.map((s, i) => (
+                    <span key={i} className="glass" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '0.9rem', border: '1px solid var(--secondary)' }}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Education Section */}
+            <section>
+              <h2 style={{ marginBottom: '20px' }}>Education</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {profileUser?.education?.map((item, i) => (
+                  <Box 
+                    key={i}
+                    head={item.institution}
+                    spec={item.degree}
+                    date={`${convertDate(item.startDate)} - ${convertDate(item.endDate)}`}
+                    score={item.score}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Learning Logs Section */}
+            {profileUser?.learningLogs?.length > 0 && (
+              <section>
+                <h2 style={{ marginBottom: '20px' }}>Recent Logs</h2>
+                <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                   {profileUser.learningLogs.slice(-3).reverse().map((log, i) => (
+                     <div key={i} style={{ paddingBottom: i < 2 ? '15px' : 0, borderBottom: i < 2 ? '1px solid var(--border-glass)' : 'none' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{convertDate(log.date)}</span>
+                        <p style={{ fontSize: '0.9rem', marginTop: '5px' }}>{log.content}</p>
+                     </div>
+                   ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

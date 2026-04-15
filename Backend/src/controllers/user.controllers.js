@@ -519,78 +519,30 @@ export const uploadPic = asyncHandler(async (req, res) => {
 });
 
 export const discoverUsers = asyncHandler(async (req, res) => {
-  console.log("******** Inside discoverUsers Function *******");
-
-  const webDevSkills = [
-    "HTML",
-    "CSS",
-    "JavaScript",
-    "React",
-    "Angular",
-    "Vue",
-    "Node.js",
-    "Express",
-    "MongoDB",
-    "SQL",
-    "NoSQL",
-  ];
-
-  const machineLearningSkills = [
-    "Python",
-    "Natural Language Processing",
-    "Deep Learning",
-    "PyTorch",
-    "Machine Learning",
-  ];
-
-  // Find all the users except the current users who are proficient in the skills that the current user wants to learn and also the the users who are proficient in the web development skills and machine learning skills in the array above
-  //
-
-  //  fetch all users except the current user
-
-  const users = await User.find({ username: { $ne: req.user.username } });
-
-  // now make three seperate list of the users who are proficient in the skills that the current user wants to learn, the users who are proficient in the web development skills and the users who are proficient in the machine learning skills and others also limit the size of the array to 5;
-
-  // const users = await User.find({
-  //   skillsProficientAt: { $in: req.user.skillsToLearn },
-  //   username: { $ne: req.user.username },
-  // });
-
-  if (!users) {
-    throw new ApiError(500, "Error in fetching users");
-  }
-  const usersToLearn = [];
-  const webDevUsers = [];
-  const mlUsers = [];
-  const otherUsers = [];
-
-  // randomly suffle the users array
-
-  users.sort(() => Math.random() - 0.5);
-
-  users.forEach((user) => {
-    if (user.skillsProficientAt.some((skill) => req.user.skillsToLearn.includes(skill)) && usersToLearn.length < 5) {
-      usersToLearn.push(user);
-    } else if (user.skillsProficientAt.some((skill) => webDevSkills.includes(skill)) && webDevUsers.length < 5) {
-      webDevUsers.push(user);
-    } else if (user.skillsProficientAt.some((skill) => machineLearningSkills.includes(skill)) && mlUsers.length < 5) {
-      mlUsers.push(user);
-    } else {
-      if (otherUsers.length < 5) otherUsers.push(user);
-    }
+  const webDevSkills = ["HTML", "CSS", "JavaScript", "React", "Angular", "Vue", "Node.js", "Express", "MongoDB", "SQL", "NoSQL"];
+  const machineLearningSkills = ["Python", "Natural Language Processing", "Deep Learning", "PyTorch", "Machine Learning"];
+  const allUsers = await User.find({ username: { $ne: req.user.username } });
+  if (!allUsers) throw new ApiError(500, "Error in fetching users");
+  const perfectMatches = [], forYou = [], webDevUsers = [], mlUsers = [], others = [];
+  const currentUserToLearn = req.user.skillsToLearn.map(s => s.toLowerCase());
+  const currentUserProficient = req.user.skillsProficientAt.map(s => s.toLowerCase());
+  allUsers.sort(() => Math.random() - 0.5);
+  allUsers.forEach((u) => {
+    const userProficient = u.skillsProficientAt.map(s => s.toLowerCase());
+    const userToLearn = u.skillsToLearn.map(s => s.toLowerCase());
+    const canTeachMe = userProficient.some(s => currentUserToLearn.includes(s));
+    const uWantToLearnFromMe = userToLearn.some(s => currentUserProficient.includes(s));
+    if (canTeachMe && uWantToLearnFromMe && perfectMatches.length < 5) perfectMatches.push(u);
+    else if (canTeachMe && forYou.length < 5) forYou.push(u);
+    else if (userProficient.some(s => webDevSkills.map(ws => ws.toLowerCase()).includes(s)) && webDevUsers.length < 5) webDevUsers.push(u);
+    else if (userProficient.some(s => machineLearningSkills.map(ms => ms.toLowerCase()).includes(s)) && mlUsers.length < 5) mlUsers.push(u);
+    else if (others.length < 5) others.push(u);
   });
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { forYou: usersToLearn, webDev: webDevUsers, ml: mlUsers, others: otherUsers },
-        "Users fetched successfully"
-      )
-    );
+  return res.status(200).json(new ApiResponse(200, { perfectMatches, forYou, webDev: webDevUsers, ml: mlUsers, others }, "Discovery results fetched successfully"));
 });
+
+
+
 
 export const sendScheduleMeet = asyncHandler(async (req, res) => {
   console.log("******** Inside sendScheduleMeet Function *******");
@@ -613,4 +565,22 @@ export const sendScheduleMeet = asyncHandler(async (req, res) => {
   await sendMail(to, subject, message);
 
   return res.status(200).json(new ApiResponse(200, null, "Email sent successfully"));
+});
+
+export const addLearningLog = asyncHandler(async (req, res) => {
+  const { content, skill } = req.body;
+  if (!content) throw new ApiError(400, "Content is required");
+  const user = await User.findById(req.user._id);
+  user.learningLogs.push({ content, skill });
+  user.karma = (user.karma || 0) + 10;
+  await user.save();
+  return res.status(200).json(new ApiResponse(200, user.learningLogs, "Learning log added successfully"));
+});
+
+export const getCommunityFeed = asyncHandler(async (req, res) => {
+  const usersWithLogs = await User.find({ "learningLogs.0": { $exists: true } }).select("name username picture learningLogs");
+  const feed = usersWithLogs.flatMap(u => 
+    u.learningLogs.map(log => ({ ...log._doc, userName: u.name, username: u.username, userPicture: u.picture }))
+  ).sort((a, b) => b.date - a.date);
+  return res.status(200).json(new ApiResponse(200, feed.slice(0, 20), "Community feed fetched successfully"));
 });

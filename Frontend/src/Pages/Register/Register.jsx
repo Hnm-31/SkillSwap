@@ -20,6 +20,7 @@ const Register = () => {
     name: "",
     email: "",
     username: "",
+    password: "",
     portfolioLink: "",
     githubLink: "",
     linkedinLink: "",
@@ -89,13 +90,8 @@ const Register = () => {
           projects: proj ? proj : prevState.projects,
         }));
       } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-          navigate("/login");
-        } else {
-          toast.error("Some error occurred");
-        }
+        console.log("No pre-reg data found, assuming manual registration");
+        setForm(prev => ({ ...prev, name: "", email: "" }));
       } finally {
         setLoading(false);
       }
@@ -222,6 +218,18 @@ const Register = () => {
       toast.error("Username is empty");
       return false;
     }
+    if (!form.email) {
+      toast.error("Email is required");
+      return false;
+    }
+    if (!form.password) {
+      toast.error("Password is required for manual registration");
+      return false;
+    }
+    if (form.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return false;
+    }
     if (!form.skillsProficientAt.length) {
       toast.error("Enter atleast one Skill you are proficient at");
       return false;
@@ -325,17 +333,16 @@ const Register = () => {
   const handleSaveRegistration = async () => {
     const check = validateRegForm();
     if (check) {
+      if (form.password) {
+        toast.info("Registration details saved locally. Proceed to next step.");
+        return;
+      }
       setSaveLoading(true);
       try {
         const { data } = await axios.post("/user/unregistered/saveRegDetails", form);
         toast.success("Details saved successfully");
       } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-        } else {
-          toast.error("Some error occurred");
-        }
+        toast.error(error?.response?.data?.message || "Error saving registration details");
       } finally {
         setSaveLoading(false);
       }
@@ -345,17 +352,16 @@ const Register = () => {
     const check1 = validateRegForm();
     const check2 = validateEduForm();
     if (check1 && check2) {
+      if (form.password) {
+        toast.info("Education details saved locally. Proceed to next step.");
+        return;
+      }
       setSaveLoading(true);
       try {
         const { data } = await axios.post("/user/unregistered/saveEduDetail", form);
         toast.success("Details saved successfully");
       } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-        } else {
-          toast.error("Some error occurred");
-        }
+        toast.error(error?.response?.data?.message || "Error saving education details");
       } finally {
         setSaveLoading(false);
       }
@@ -365,19 +371,17 @@ const Register = () => {
     const check1 = validateRegForm();
     const check2 = validateEduForm();
     const check3 = await validateAddForm();
-    console.log(check1, check2, check3);
     if (check1 && check2 && check3) {
+      if (form.password) {
+        toast.info("Additional details saved locally. You can now preview and submit.");
+        return;
+      }
       setSaveLoading(true);
       try {
         const { data } = await axios.post("/user/unregistered/saveAddDetail", form);
         toast.success("Details saved successfully");
       } catch (error) {
-        console.log(error);
-        if (error?.response?.data?.message) {
-          toast.error(error.response.data.message);
-        } else {
-          toast.error("Some error occurred");
-        }
+        toast.error(error?.response?.data?.message || "Error saving additional details");
       } finally {
         setSaveLoading(false);
       }
@@ -391,9 +395,10 @@ const Register = () => {
     if (check1 && check2 && check3) {
       setSaveLoading(true);
       try {
-        const { data } = await axios.post("/user/registerUser", form);
+        const { data } = await axios.post("/auth/register", form);
         toast.success("Registration Successful");
         console.log("Data: ", data.data);
+        localStorage.setItem("userInfo", JSON.stringify(data.data));
         navigate("/discover");
       } catch (error) {
         console.log(error);
@@ -433,7 +438,7 @@ const Register = () => {
                 <br />
                 <input
                   type="text"
-                  name="username"
+                  name="name"
                   onChange={handleInputChange}
                   style={{
                     borderRadius: "5px",
@@ -442,7 +447,7 @@ const Register = () => {
                     width: "100%",
                   }}
                   value={form.name}
-                  disabled
+                  disabled={!!form.name && !form.password}
                 />
               </div>
               {/* Email */}
@@ -453,7 +458,7 @@ const Register = () => {
                 <br />
                 <input
                   type="text"
-                  name="username"
+                  name="email"
                   onChange={handleInputChange}
                   style={{
                     borderRadius: "5px",
@@ -462,7 +467,27 @@ const Register = () => {
                     width: "100%",
                   }}
                   value={form.email}
-                  disabled
+                  disabled={!!form.email && !form.password}
+                />
+              </div>
+              {/* Password */}
+              <div>
+                <label className="mt-3" style={{ color: "#3BB4A1" }}>
+                  Password
+                </label>
+                <br />
+                <input
+                  type="password"
+                  name="password"
+                  onChange={handleInputChange}
+                  value={form.password}
+                  style={{
+                    borderRadius: "5px",
+                    border: "1px solid #3BB4A1",
+                    padding: "5px",
+                    width: "100%",
+                  }}
+                  placeholder="Enter a strong password"
                 />
               </div>
               {/* Username */}

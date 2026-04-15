@@ -16,6 +16,10 @@ import PrivateRoutes from "./util/PrivateRoutes";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+import Feed from "./Pages/Feed/Feed";
+import ForgotPassword from "./Pages/Login/ForgotPassword";
+import ResetPassword from "./Pages/Login/ResetPassword";
+
 const App = () => {
   return (
     <>
@@ -24,12 +28,15 @@ const App = () => {
       <Routes>
         <Route element={<PrivateRoutes />}>
           <Route path="/chats" element={<Chats />} />
+          <Route path="/feed" element={<Feed />} />
         </Route>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/register" element={<Register />} />
         <Route path="/about_us" element={<AboutUs />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/edit_profile" element={<EditProfile />} />
         <Route path="/report/:username" element={<Report />} />
         <Route path="/profile/:username" element={<Profile />} />

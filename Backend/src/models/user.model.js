@@ -15,6 +15,11 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
+    password: {
+      type: String,
+    },
+    forgotPasswordToken: String,
+    forgotPasswordTokenExpiry: Date,
     picture: {
       type: String,
       default: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcToK4qEfbnd-RN82wdL2awn_PMviy_pelocqQ",
@@ -109,6 +114,21 @@ const userSchema = new Schema(
         },
       },
     ],
+    karma: {
+      type: Number,
+      default: 100, // Starting karma
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    learningLogs: [
+      {
+        content: { type: String, required: true },
+        date: { type: Date, default: Date.now },
+        skill: { type: String }
+      }
+    ]
   },
   { timestamps: true }
 );
